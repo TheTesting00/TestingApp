@@ -28,7 +28,9 @@ import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -38,9 +40,12 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -52,6 +57,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,13 +91,17 @@ fun LibraryScreen(
     onRequestPermission: () -> Unit,
     onRefreshSongs: () -> Unit,
     onAddMusicFiles: () -> Unit,
+    onOpenEditHub: () -> Unit,
     onOpenEarphoneStudio: () -> Unit,
+    onOpenTheme: () -> Unit,
     onOpenTimer: () -> Unit,
     onSongClick: (Song) -> Unit,
     onEditSongClick: (Song) -> Unit,
     loadCoverBitmap: suspend (Song, Int) -> Bitmap?,
-    bottomSpacerHeight: PaddingValues = PaddingValues(bottom = 140.dp)
+    bottomSpacerHeight: PaddingValues = PaddingValues(bottom = 90.dp)
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -145,6 +158,7 @@ fun LibraryScreen(
                         }
                     }
                 }
+
                 if (playbackState.sleepTimerActive) {
                     Surface(
                         modifier = Modifier
@@ -174,14 +188,8 @@ fun LibraryScreen(
                             )
                         }
                     }
-                } else {
-                    IconButton(onClick = onOpenTimer) {
-                        Icon(
-                            imageVector = Icons.Rounded.Timer,
-                            contentDescription = "Timer pemutar musik"
-                        )
-                    }
                 }
+
                 IconButton(onClick = onAddMusicFiles) {
                     Icon(
                         imageVector = Icons.Rounded.FolderOpen,
@@ -189,11 +197,89 @@ fun LibraryScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                IconButton(onClick = onRefreshSongs) {
-                    Icon(
-                        imageVector = Icons.Rounded.Refresh,
-                        contentDescription = "Muat ulang lagu"
-                    )
+
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.MoreVert,
+                            contentDescription = "Pengaturan & Menu"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Musik") },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Edit, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onOpenEditHub()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Studio Earphone")
+                                    if (earphoneStatus.isConnected) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF22C55E))
+                                        )
+                                    }
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Headphones, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onOpenEarphoneStudio()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Tema & Tampilan") },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Palette, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onOpenTheme()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (playbackState.sleepTimerActive) "Timer Musik (Aktif)"
+                                    else "Timer Musik"
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Timer, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onOpenTimer()
+                            }
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Muat Ulang Lagu") },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Refresh, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onRefreshSongs()
+                            }
+                        )
+                    }
                 }
             }
         )
@@ -311,7 +397,7 @@ private fun PermissionCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Berikan izin audio agar MusikKu otomatis memindai lagu bawaan & MP3 di HP kamu, atau ketuk tombol + di navigasi bawah.",
+                text = "Berikan izin audio agar MusikKu otomatis memindai lagu bawaan & MP3 di HP kamu, atau pilih manual lewat ikon folder di atas.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

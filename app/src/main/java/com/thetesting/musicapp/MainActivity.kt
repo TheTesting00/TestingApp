@@ -8,18 +8,18 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
@@ -36,8 +36,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thetesting.musicapp.model.Song
 import com.thetesting.musicapp.ui.MusicViewModel
-import com.thetesting.musicapp.ui.components.AdaptiveBottomNavBar
-import com.thetesting.musicapp.ui.components.AppTab
 import com.thetesting.musicapp.ui.components.SleepTimerDialog
 import com.thetesting.musicapp.ui.screens.EarphoneScreen
 import com.thetesting.musicapp.ui.screens.EditHubScreen
@@ -48,6 +46,13 @@ import com.thetesting.musicapp.ui.screens.NowPlayingScreen
 import com.thetesting.musicapp.ui.screens.ThemeScreen
 import com.thetesting.musicapp.ui.theme.MusikKuTheme
 import kotlinx.coroutines.launch
+
+enum class AppScreen {
+    LIBRARY,
+    EDIT_HUB,
+    EARPHONE,
+    THEME
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -71,7 +76,7 @@ class MainActivity : ComponentActivity() {
                 val eqBandLabels by vm.eqBandLabels.collectAsState()
                 val statusMessage by vm.statusMessage.collectAsState()
 
-                var selectedTab by remember { mutableStateOf(AppTab.MUSIC) }
+                var currentScreen by remember { mutableStateOf(AppScreen.LIBRARY) }
                 var showNowPlaying by remember { mutableStateOf(false) }
                 var showSleepTimerDialog by remember { mutableStateOf(false) }
                 var editingSong by remember { mutableStateOf<Song?>(null) }
@@ -79,6 +84,11 @@ class MainActivity : ComponentActivity() {
                 var importedLyricsText by remember { mutableStateOf<String?>(null) }
 
                 val scope = rememberCoroutineScope()
+
+                // Intercept hardware / gesture back button to return to Library first
+                BackHandler(enabled = currentScreen != AppScreen.LIBRARY) {
+                    currentScreen = AppScreen.LIBRARY
+                }
 
                 val audioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     Manifest.permission.READ_MEDIA_AUDIO
@@ -164,7 +174,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val bottomContentPadding = PaddingValues(
-                    bottom = if (playbackState.currentSong != null) 152.dp else 90.dp
+                    bottom = if (playbackState.currentSong != null) 96.dp else 24.dp
                 )
 
                 Box(
@@ -173,8 +183,8 @@ class MainActivity : ComponentActivity() {
                         .background(MaterialTheme.colorScheme.background)
                         .statusBarsPadding()
                 ) {
-                    when (selectedTab) {
-                        AppTab.MUSIC, AppTab.ADD -> {
+                    when (currentScreen) {
+                        AppScreen.LIBRARY -> {
                             LibraryScreen(
                                 songs = songs,
                                 searchQuery = searchQuery,
@@ -196,7 +206,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onRefreshSongs = vm::refreshSongs,
                                 onAddMusicFiles = { addMusicLauncher.launch(arrayOf("audio/*")) },
-                                onOpenEarphoneStudio = { selectedTab = AppTab.EARPHONE },
+                                onOpenEditHub = { currentScreen = AppScreen.EDIT_HUB },
+                                onOpenEarphoneStudio = { currentScreen = AppScreen.EARPHONE },
+                                onOpenTheme = { currentScreen = AppScreen.THEME },
                                 onOpenTimer = { showSleepTimerDialog = true },
                                 onSongClick = { song -> vm.playSong(song) },
                                 onEditSongClick = { song ->
@@ -209,10 +221,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        AppTab.EDIT -> {
+                        AppScreen.EDIT_HUB -> {
                             EditHubScreen(
                                 songs = allSongs,
                                 currentSong = playbackState.currentSong,
+                                onBack = { currentScreen = AppScreen.LIBRARY },
                                 onEditSong = { song ->
                                     pendingCoverUri = null
                                     importedLyricsText = null
@@ -224,11 +237,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        AppTab.EARPHONE -> {
+                        AppScreen.EARPHONE -> {
                             EarphoneScreen(
                                 status = earphoneStatus,
                                 settings = earphoneSettings,
                                 bandLabels = eqBandLabels,
+                                onBack = { currentScreen = AppScreen.LIBRARY },
                                 onRefreshStatus = vm::refreshEarphoneStatus,
                                 onUpdateSettings = vm::updateEarphoneSettings,
                                 onSelectPreset = vm::selectEqPreset,
@@ -237,26 +251,26 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        AppTab.THEME -> {
+                        AppScreen.THEME -> {
                             ThemeScreen(
                                 appearance = appearance,
+                                onBack = { currentScreen = AppScreen.LIBRARY },
                                 onSelectTheme = vm::selectTheme,
-                                onSelectNavBarStyle = vm::selectNavBarStyle,
                                 bottomPadding = bottomContentPadding
                             )
                         }
                     }
 
-                    // Bottom Mini Player + Selectable Bottom Navigation Bar
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .navigationBarsPadding(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        val currentSong = playbackState.currentSong
-                        if (currentSong != null) {
+                    // Floating Mini Player docked above the system navigation bar
+                    val currentSong = playbackState.currentSong
+                    if (currentSong != null) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(bottom = 8.dp)
+                        ) {
                             MiniPlayerBar(
                                 song = currentSong,
                                 isPlaying = playbackState.isPlaying,
@@ -268,14 +282,6 @@ class MainActivity : ComponentActivity() {
                                 loadCoverBitmap = vm::loadCoverBitmap
                             )
                         }
-
-                        AdaptiveBottomNavBar(
-                            selectedTab = selectedTab,
-                            styleId = appearance.navBarStyleId,
-                            earphoneConnected = earphoneStatus.isConnected,
-                            onSelectTab = { tab -> selectedTab = tab },
-                            onCenterAddClick = { addMusicLauncher.launch(arrayOf("audio/*")) }
-                        )
                     }
                 }
 

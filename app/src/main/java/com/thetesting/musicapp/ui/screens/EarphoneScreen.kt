@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BluetoothAudio
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Headphones
@@ -27,14 +28,18 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Speaker
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,257 +52,274 @@ import com.thetesting.musicapp.model.EarphoneSettings
 import com.thetesting.musicapp.model.EarphoneStatus
 import com.thetesting.musicapp.model.EqPreset
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun EarphoneScreen(
     status: EarphoneStatus,
     settings: EarphoneSettings,
     bandLabels: List<String>,
+    onBack: () -> Unit,
     onRefreshStatus: () -> Unit,
     onUpdateSettings: (EarphoneSettings) -> Unit,
     onSelectPreset: (EqPreset) -> Unit,
     onBandChange: (Int, Int) -> Unit,
     bottomPadding: PaddingValues = PaddingValues(bottom = 100.dp)
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 12.dp, bottom = bottomPadding.calculateBottomPadding() + 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Studio Earphone",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Atur kualitas suara & perilaku saat earphone konek",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            IconButton(onClick = onRefreshStatus) {
-                Icon(Icons.Rounded.Refresh, contentDescription = "Periksa perangkat audio")
-            }
-        }
-
-        // Status Card
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = if (status.isConnected) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-                } else {
-                    MaterialTheme.colorScheme.surface
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Kembali"
+                        )
+                    }
+                },
+                title = {
+                    Column {
+                        Text(
+                            text = "Studio Earphone",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Atur audio otomatis saat terhubung ke HP",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onRefreshStatus) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "Periksa status audio")
+                    }
                 }
-            ),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = bottomPadding.calculateBottomPadding() + 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Status Card
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (status.isConnected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                ),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (status.isConnected) Color(0xFF22C55E).copy(alpha = 0.2f)
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = when (status.type) {
-                            EarphoneConnectionType.BLUETOOTH -> Icons.Rounded.BluetoothAudio
-                            EarphoneConnectionType.WIRED -> Icons.Rounded.Headphones
-                            EarphoneConnectionType.SPEAKER -> Icons.Rounded.Speaker
-                        },
-                        contentDescription = null,
-                        tint = if (status.isConnected) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (status.isConnected) "Earphone Terhubung" else "Tidak Ada Earphone",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = status.deviceName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = if (settings.enabled && (!settings.autoActivateOnConnect || status.isConnected)) {
-                            "Profil audio earphone sedang AKTIF"
-                        } else if (settings.autoActivateOnConnect && !status.isConnected) {
-                            "Menunggu earphone terhubung untuk aktif otomatis"
-                        } else {
-                            "Efek audio earphone nonaktif"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (status.isConnected) Color(0xFF22C55E).copy(alpha = 0.2f)
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when (status.type) {
+                                EarphoneConnectionType.BLUETOOTH -> Icons.Rounded.BluetoothAudio
+                                EarphoneConnectionType.WIRED -> Icons.Rounded.Headphones
+                                EarphoneConnectionType.SPEAKER -> Icons.Rounded.Speaker
+                            },
+                            contentDescription = null,
+                            tint = if (status.isConnected) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (status.isConnected) "Earphone Terhubung" else "Tidak Ada Earphone",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = status.deviceName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = if (settings.enabled && (!settings.autoActivateOnConnect || status.isConnected)) {
+                                "Profil audio earphone sedang AKTIF"
+                            } else if (settings.autoActivateOnConnect && !status.isConnected) {
+                                "Menunggu earphone terhubung untuk aktif otomatis"
+                            } else {
+                                "Efek audio earphone nonaktif"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-        }
 
-        // Connection Behavior Switches
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // Connection Behavior Switches
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Otomatisasi Koneksi & Tombol Earphone",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                SettingToggleRow(
-                    title = "Aktifkan Tuning Suara Earphone",
-                    subtitle = "Terapkan Equalizer, Bass, & Surround",
-                    checked = settings.enabled,
-                    onCheckedChange = { onUpdateSettings(settings.copy(enabled = it)) }
-                )
-                SettingToggleRow(
-                    title = "Aktif Otomatis Saat Earphone Konek",
-                    subtitle = "Suara tuning hanya aktif saat headset/TWS tersambung",
-                    checked = settings.autoActivateOnConnect,
-                    onCheckedChange = { onUpdateSettings(settings.copy(autoActivateOnConnect = it)) }
-                )
-                SettingToggleRow(
-                    title = "Auto-Jeda Saat Earphone Dilepas",
-                    subtitle = "Musik otomatis berhenti jika kabel tercabut atau TWS putus",
-                    checked = settings.autoPauseOnDisconnect,
-                    onCheckedChange = { onUpdateSettings(settings.copy(autoPauseOnDisconnect = it)) }
-                )
-                SettingToggleRow(
-                    title = "Auto-Putar Saat Earphone Tersambung",
-                    subtitle = "Lanjutkan lagu otomatis saat earphone baru dicolok/konek",
-                    checked = settings.autoPlayOnConnect,
-                    onCheckedChange = { onUpdateSettings(settings.copy(autoPlayOnConnect = it)) }
-                )
-                SettingToggleRow(
-                    title = "Ketuk 2x Tombol Earphone = Lagu Berikutnya",
-                    subtitle = "Ketuk 1x untuk Putar/Jeda, ketuk cepat 2x untuk Next",
-                    checked = settings.doubleTapNextTrack,
-                    onCheckedChange = { onUpdateSettings(settings.copy(doubleTapNextTrack = it)) }
-                )
-            }
-        }
-
-        // Equalizer Presets
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.GraphicEq,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
-                        text = "Preset Equalizer Earphone",
+                        text = "Otomatisasi Koneksi & Tombol Earphone",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
+                    SettingToggleRow(
+                        title = "Aktifkan Tuning Suara Earphone",
+                        subtitle = "Terapkan Equalizer, Bass, & Surround",
+                        checked = settings.enabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(enabled = it)) }
+                    )
+                    SettingToggleRow(
+                        title = "Aktif Otomatis Saat Earphone Konek",
+                        subtitle = "Suara tuning hanya aktif saat headset/TWS tersambung",
+                        checked = settings.autoActivateOnConnect,
+                        onCheckedChange = { onUpdateSettings(settings.copy(autoActivateOnConnect = it)) }
+                    )
+                    SettingToggleRow(
+                        title = "Auto-Jeda Saat Earphone Dilepas",
+                        subtitle = "Musik otomatis berhenti jika kabel tercabut atau TWS putus",
+                        checked = settings.autoPauseOnDisconnect,
+                        onCheckedChange = { onUpdateSettings(settings.copy(autoPauseOnDisconnect = it)) }
+                    )
+                    SettingToggleRow(
+                        title = "Auto-Putar Saat Earphone Tersambung",
+                        subtitle = "Lanjutkan lagu otomatis saat earphone baru dicolok/konek",
+                        checked = settings.autoPlayOnConnect,
+                        onCheckedChange = { onUpdateSettings(settings.copy(autoPlayOnConnect = it)) }
+                    )
+                    SettingToggleRow(
+                        title = "Ketuk 2x Tombol Earphone = Lagu Berikutnya",
+                        subtitle = "Ketuk 1x untuk Putar/Jeda, ketuk cepat 2x untuk Next",
+                        checked = settings.doubleTapNextTrack,
+                        onCheckedChange = { onUpdateSettings(settings.copy(doubleTapNextTrack = it)) }
+                    )
                 }
+            }
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+            // Equalizer Presets
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    EqPreset.entries.forEach { preset ->
-                        FilterChip(
-                            selected = settings.preset == preset,
-                            onClick = { onSelectPreset(preset) },
-                            label = { Text(preset.displayName) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.GraphicEq,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Preset Equalizer Earphone",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
 
-                // 5-band sliders
-                settings.bandValues.forEachIndexed { index, value ->
-                    val label = bandLabels.getOrElse(index) { "Band ${index + 1}" }
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "${if (value > 0) "+" else ""}$value%",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        EqPreset.entries.forEach { preset ->
+                            FilterChip(
+                                selected = settings.preset == preset,
+                                onClick = { onSelectPreset(preset) },
+                                label = { Text(preset.displayName) }
                             )
                         }
-                        Slider(
-                            value = value.toFloat(),
-                            onValueChange = { onBandChange(index, it.toInt()) },
-                            valueRange = -100f..100f
-                        )
+                    }
+
+                    settings.bandValues.forEachIndexed { index, value ->
+                        val label = bandLabels.getOrElse(index) { "Band ${index + 1}" }
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "${if (value > 0) "+" else ""}$value%",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Slider(
+                                value = value.toFloat(),
+                                onValueChange = { onBandChange(index, it.toInt()) },
+                                valueRange = -100f..100f
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Bass, Virtualizer, Loudness
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // Bass, Virtualizer, Loudness
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Penguat Efek Audio",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Penguat Efek Audio",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
 
-                EffectSliderRow(
-                    title = "Bass Boost",
-                    value = settings.bassBoostPercent,
-                    onValueChange = { onUpdateSettings(settings.copy(bassBoostPercent = it)) }
-                )
-                EffectSliderRow(
-                    title = "Surround / 3D Virtualizer",
-                    value = settings.virtualizerPercent,
-                    onValueChange = { onUpdateSettings(settings.copy(virtualizerPercent = it)) }
-                )
-                EffectSliderRow(
-                    title = "Penguat Volume (Loudness Gain)",
-                    value = settings.loudnessGainPercent,
-                    onValueChange = { onUpdateSettings(settings.copy(loudnessGainPercent = it)) }
-                )
+                    EffectSliderRow(
+                        title = "Bass Boost",
+                        value = settings.bassBoostPercent,
+                        onValueChange = { onUpdateSettings(settings.copy(bassBoostPercent = it)) }
+                    )
+                    EffectSliderRow(
+                        title = "Surround / 3D Virtualizer",
+                        value = settings.virtualizerPercent,
+                        onValueChange = { onUpdateSettings(settings.copy(virtualizerPercent = it)) }
+                    )
+                    EffectSliderRow(
+                        title = "Penguat Volume (Loudness Gain)",
+                        value = settings.loudnessGainPercent,
+                        onValueChange = { onUpdateSettings(settings.copy(loudnessGainPercent = it)) }
+                    )
+                }
             }
         }
     }
