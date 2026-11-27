@@ -22,9 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Article
+import androidx.compose.material.icons.rounded.BluetoothAudio
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -37,14 +40,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -53,9 +54,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.thetesting.musicapp.model.EarphoneConnectionType
+import com.thetesting.musicapp.model.EarphoneStatus
 import com.thetesting.musicapp.model.Song
 import com.thetesting.musicapp.model.formatDuration
 import com.thetesting.musicapp.player.PlaybackState
@@ -71,182 +75,177 @@ fun LibraryScreen(
     hasAudioPermission: Boolean,
     isLoading: Boolean,
     playbackState: PlaybackState,
+    earphoneStatus: EarphoneStatus,
     onSearchQueryChange: (String) -> Unit,
     onFilterSelect: (LibraryFilter) -> Unit,
     onRequestPermission: () -> Unit,
     onRefreshSongs: () -> Unit,
     onAddMusicFiles: () -> Unit,
+    onOpenEarphoneStudio: () -> Unit,
     onSongClick: (Song) -> Unit,
     onEditSongClick: (Song) -> Unit,
-    onOpenNowPlaying: () -> Unit,
-    onTogglePlayPause: () -> Unit,
-    onSkipNext: () -> Unit,
-    loadCoverBitmap: suspend (Song, Int) -> Bitmap?
+    loadCoverBitmap: suspend (Song, Int) -> Bitmap?,
+    bottomSpacerHeight: PaddingValues = PaddingValues(bottom = 140.dp)
 ) {
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                title = {
-                    Column {
-                        Text(
-                            text = "MusikKu",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${songs.size} lagu siap diputar",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onAddMusicFiles) {
-                        Icon(
-                            imageVector = Icons.Rounded.FolderOpen,
-                            contentDescription = "Tambah file musik",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = onRefreshSongs) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Muat ulang lagu"
-                        )
-                    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.background
+            ),
+            title = {
+                Column {
+                    Text(
+                        text = "MusikKu",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${songs.size} lagu siap diputar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddMusicFiles,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(
-                    bottom = if (playbackState.currentSong != null) 76.dp else 0.dp
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = "Tambah file musik"
-                )
-            }
-        },
-        bottomBar = {
-            val currentSong = playbackState.currentSong
-            if (currentSong != null) {
-                MiniPlayerBar(
-                    song = currentSong,
-                    isPlaying = playbackState.isPlaying,
-                    positionMs = playbackState.positionMs,
-                    durationMs = playbackState.durationMs,
-                    onClick = onOpenNowPlaying,
-                    onTogglePlayPause = onTogglePlayPause,
-                    onSkipNext = onSkipNext,
-                    loadCoverBitmap = loadCoverBitmap
-                )
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (!hasAudioPermission) {
-                PermissionCard(
-                    onRequestPermission = onRequestPermission,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = { Text("Cari judul, artis, atau album...") },
-                leadingIcon = {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Hapus pencarian")
+            },
+            actions = {
+                if (earphoneStatus.isConnected) {
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable(onClick = onOpenEarphoneStudio),
+                        color = Color(0xFF22C55E).copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (earphoneStatus.type == EarphoneConnectionType.BLUETOOTH) {
+                                    Icons.Rounded.BluetoothAudio
+                                } else {
+                                    Icons.Rounded.Headphones
+                                },
+                                contentDescription = "Earphone aktif",
+                                tint = Color(0xFF22C55E),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Earphone",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF22C55E),
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                LibraryFilter.entries.forEach { filter ->
-                    val selected = selectedFilter == filter
-                    FilterChip(
-                        selected = selected,
-                        onClick = { onFilterSelect(filter) },
-                        label = { Text(filter.label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                }
+                IconButton(onClick = onAddMusicFiles) {
+                    Icon(
+                        imageVector = Icons.Rounded.FolderOpen,
+                        contentDescription = "Tambah file musik",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = onRefreshSongs) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = "Muat ulang lagu"
                     )
                 }
             }
+        )
 
-            if (isLoading) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+        if (!hasAudioPermission) {
+            PermissionCard(
+                onRequestPermission = onRequestPermission,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            )
+        }
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = { Text("Cari judul, artis, atau album...") },
+            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Hapus pencarian")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            LibraryFilter.entries.forEach { filter ->
+                val selected = selectedFilter == filter
+                FilterChip(
+                    selected = selected,
+                    onClick = { onFilterSelect(filter) },
+                    label = { Text(filter.label) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 )
             }
+        }
 
-            if (songs.isEmpty() && !isLoading) {
-                EmptyLibraryState(
-                    hasPermission = hasAudioPermission,
-                    onAddMusicFiles = onAddMusicFiles,
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 6.dp,
-                        bottom = 96.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(songs, key = { it.id }) { song ->
-                        val isCurrent = playbackState.currentSong?.id == song.id
-                        SongRowCard(
-                            song = song,
-                            isCurrent = isCurrent,
-                            isPlaying = isCurrent && playbackState.isPlaying,
-                            onClick = { onSongClick(song) },
-                            onEditClick = { onEditSongClick(song) },
-                            loadCoverBitmap = loadCoverBitmap
-                        )
-                    }
+        if (isLoading) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+        }
+
+        if (songs.isEmpty() && !isLoading) {
+            EmptyLibraryState(
+                hasPermission = hasAudioPermission,
+                onAddMusicFiles = onAddMusicFiles,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 6.dp,
+                    bottom = bottomSpacerHeight.calculateBottomPadding()
+                ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(songs, key = { it.id }) { song ->
+                    val isCurrent = playbackState.currentSong?.id == song.id
+                    SongRowCard(
+                        song = song,
+                        isCurrent = isCurrent,
+                        isPlaying = isCurrent && playbackState.isPlaying,
+                        onClick = { onSongClick(song) },
+                        onEditClick = { onEditSongClick(song) },
+                        loadCoverBitmap = loadCoverBitmap
+                    )
                 }
             }
         }
@@ -265,7 +264,7 @@ private fun PermissionCard(
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 text = "Izinkan Akses Musik HP",
                 style = MaterialTheme.typography.titleMedium,
@@ -273,7 +272,7 @@ private fun PermissionCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Berikan izin audio agar MusikKu otomatis memindai lagu bawaan & MP3 di HP kamu, atau gunakan tombol + untuk memilih file manual.",
+                text = "Berikan izin audio agar MusikKu otomatis memindai lagu bawaan & MP3 di HP kamu, atau ketuk tombol + di navigasi bawah.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -334,7 +333,7 @@ private fun EmptyLibraryState(
 }
 
 @Composable
-private fun SongRowCard(
+fun SongRowCard(
     song: Song,
     isCurrent: Boolean,
     isPlaying: Boolean,
@@ -411,6 +410,14 @@ private fun SongRowCard(
                             )
                         }
                     }
+                    if (song.trimStartMs > 0L || song.trimEndMs > 0L || kotlin.math.abs(song.playbackSpeed - 1.0f) > 0.02f) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCut,
+                            contentDescription = "Audio diedit",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
                     if (song.isEdited) {
                         Text(
                             text = "• Diedit",
@@ -439,7 +446,7 @@ private fun SongRowCard(
 }
 
 @Composable
-private fun MiniPlayerBar(
+fun MiniPlayerBar(
     song: Song,
     isPlaying: Boolean,
     positionMs: Long,
@@ -447,14 +454,18 @@ private fun MiniPlayerBar(
     onClick: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSkipNext: () -> Unit,
-    loadCoverBitmap: suspend (Song, Int) -> Bitmap?
+    loadCoverBitmap: suspend (Song, Int) -> Bitmap?,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 8.dp
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 6.dp
     ) {
         Column {
             val progress = if (durationMs > 0L) {
@@ -471,13 +482,13 @@ private fun MiniPlayerBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AlbumArtImage(
                     song = song,
                     loadBitmap = loadCoverBitmap,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(42.dp),
                     cornerRadius = 8.dp,
                     maxSizePx = 150,
                     iconSize = 20.dp

@@ -8,6 +8,11 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import com.thetesting.musicapp.model.AppAppearanceSettings
+import com.thetesting.musicapp.model.AppThemeId
+import com.thetesting.musicapp.model.EarphoneSettings
+import com.thetesting.musicapp.model.EqPreset
+import com.thetesting.musicapp.model.NavBarStyleId
 import com.thetesting.musicapp.model.Song
 import com.thetesting.musicapp.model.SongOverride
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +27,8 @@ class MusicRepository(private val context: Context) {
 
     private val overridesFile = File(context.filesDir, "song_overrides.json")
     private val customSongsFile = File(context.filesDir, "custom_songs.json")
+    private val appearanceFile = File(context.filesDir, "appearance_settings.json")
+    private val earphoneFile = File(context.filesDir, "earphone_settings.json")
     private val coversDir = File(context.filesDir, "covers").apply { mkdirs() }
 
     suspend fun loadSongs(hasStoragePermission: Boolean): List<Song> = withContext(Dispatchers.IO) {
@@ -93,7 +100,6 @@ class MusicRepository(private val context: Context) {
                 }
             }
         } catch (_: Exception) {
-            // Permission revoked or device MediaStore error
         }
         return list
     }
@@ -119,7 +125,6 @@ class MusicRepository(private val context: Context) {
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull()?.let { durationMs = it }
         } catch (_: Exception) {
-            // Fallback to filename metadata
         } finally {
             try {
                 retriever.release()
@@ -168,6 +173,10 @@ class MusicRepository(private val context: Context) {
         artist: String,
         album: String,
         lyrics: String,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        playbackSpeed: Float,
+        playbackPitch: Float,
         newCoverUri: Uri?,
         removeCover: Boolean
     ): SongOverride = withContext(Dispatchers.IO) {
@@ -191,7 +200,11 @@ class MusicRepository(private val context: Context) {
             artist = artist.trim().takeIf { it.isNotEmpty() },
             album = album.trim().takeIf { it.isNotEmpty() },
             customCoverPath = coverPath,
-            lyrics = lyrics.trimEnd()
+            lyrics = lyrics.trimEnd(),
+            trimStartMs = trimStartMs.coerceAtLeast(0L),
+            trimEndMs = trimEndMs.coerceAtLeast(0L),
+            playbackSpeed = playbackSpeed.coerceIn(0.5f, 2.0f),
+            playbackPitch = playbackPitch.coerceIn(0.75f, 1.5f)
         )
         allOverrides[songId] = updated
         writeOverrides(allOverrides)
@@ -203,6 +216,73 @@ class MusicRepository(private val context: Context) {
         val removed = allOverrides.remove(songId)
         removed?.customCoverPath?.let { File(it).delete() }
         writeOverrides(allOverrides)
+    }
+
+    suspend fun loadAppearanceSettings(): AppAppearanceSettings = withContext(Dispatchers.IO) {
+        if (!appearanceFile.exists()) return@withContext AppAppearanceSettings()
+        try {
+            val obj = JSONObject(appearanceFile.readText())
+            val theme = AppThemeId.entries.find { it.name == obj.optString("themeId") }
+                ?: AppThemeId.MIDNIGHT_EMERALD
+            val navStyle = NavBarStyleId.entries.find { it.name == obj.optString("navBarStyleId") }
+                ?: NavBarStyleId.FLOATING_DETACHED
+            AppAppearanceSettings(themeId = theme, navBarStyleId = navStyle)
+        } catch (_: Exception) {
+            AppAppearanceSettings()
+        }
+    }
+
+    suspend fun saveAppearanceSettings(settings: AppAppearanceSettings) = withContext(Dispatchers.IO) {
+        val obj = JSONObject().apply {
+            put("themeId", settings.themeId.name)
+            put("navBarStyleId", settings.navBarStyleId.name)
+        }
+        appearanceFile.writeText(obj.toString())
+    }
+
+    fun loadEarphoneSettingsSync(): EarphoneSettings {
+        if (!earphoneFile.exists()) return EarphoneSettings()
+        return try {
+            val obj = JSONObject(earphoneFile.readText())
+            val preset = EqPreset.entries.find { it.name == obj.optString("preset") }
+                ?: EqPreset.BASS_BOOST
+            val bandsArr = obj.optJSONArray("bandValues")
+            val bands = if (bandsArr != null && bandsArr.length() == 5) {
+                List(5) { idx -> bandsArr.optInt(idx, 0).coerceIn(-100, 100) }
+            } else {
+                preset.bandLevels
+            }
+            EarphoneSettings(
+                enabled = obj.optBoolean("enabled", true),
+                autoActivateOnConnect = obj.optBoolean("autoActivateOnConnect", true),
+                autoPauseOnDisconnect = obj.optBoolean("autoPauseOnDisconnect", true),
+                autoPlayOnConnect = obj.optBoolean("autoPlayOnConnect", false),
+                preset = preset,
+                bandValues = bands,
+                bassBoostPercent = obj.optInt("bassBoostPercent", 45).coerceIn(0, 100),
+                virtualizerPercent = obj.optInt("virtualizerPercent", 35).coerceIn(0, 100),
+                loudnessGainPercent = obj.optInt("loudnessGainPercent", 20).coerceIn(0, 100),
+                doubleTapNextTrack = obj.optBoolean("doubleTapNextTrack", true)
+            )
+        } catch (_: Exception) {
+            EarphoneSettings()
+        }
+    }
+
+    suspend fun saveEarphoneSettings(settings: EarphoneSettings) = withContext(Dispatchers.IO) {
+        val obj = JSONObject().apply {
+            put("enabled", settings.enabled)
+            put("autoActivateOnConnect", settings.autoActivateOnConnect)
+            put("autoPauseOnDisconnect", settings.autoPauseOnDisconnect)
+            put("autoPlayOnConnect", settings.autoPlayOnConnect)
+            put("preset", settings.preset.name)
+            put("bandValues", JSONArray(settings.bandValues))
+            put("bassBoostPercent", settings.bassBoostPercent)
+            put("virtualizerPercent", settings.virtualizerPercent)
+            put("loudnessGainPercent", settings.loudnessGainPercent)
+            put("doubleTapNextTrack", settings.doubleTapNextTrack)
+        }
+        earphoneFile.writeText(obj.toString())
     }
 
     suspend fun readLyricsFromUri(uri: Uri): String = withContext(Dispatchers.IO) {
@@ -272,14 +352,22 @@ class MusicRepository(private val context: Context) {
     private fun applyOverride(base: Song, override: SongOverride?): Song {
         if (override == null) return base
         val hasValidCover = override.customCoverPath?.let { File(it).exists() } == true
+        val hasAudioTweaks = override.trimStartMs > 0L ||
+            override.trimEndMs > 0L ||
+            kotlin.math.abs(override.playbackSpeed - 1.0f) > 0.01f ||
+            kotlin.math.abs(override.playbackPitch - 1.0f) > 0.01f
         val edited = (override.title != null || override.artist != null || override.album != null ||
-            hasValidCover || override.lyrics.isNotBlank())
+            hasValidCover || override.lyrics.isNotBlank() || hasAudioTweaks)
         return base.copy(
             title = override.title ?: base.title,
             artist = override.artist ?: base.artist,
             album = override.album ?: base.album,
             customCoverPath = if (hasValidCover) override.customCoverPath else null,
             lyrics = override.lyrics,
+            trimStartMs = override.trimStartMs,
+            trimEndMs = override.trimEndMs,
+            playbackSpeed = override.playbackSpeed,
+            playbackPitch = override.playbackPitch,
             isEdited = edited
         )
     }
@@ -298,7 +386,11 @@ class MusicRepository(private val context: Context) {
                     artist = obj.optString("artist").takeIf { it.isNotEmpty() },
                     album = obj.optString("album").takeIf { it.isNotEmpty() },
                     customCoverPath = obj.optString("customCoverPath").takeIf { it.isNotEmpty() },
-                    lyrics = obj.optString("lyrics", "")
+                    lyrics = obj.optString("lyrics", ""),
+                    trimStartMs = obj.optLong("trimStartMs", 0L),
+                    trimEndMs = obj.optLong("trimEndMs", 0L),
+                    playbackSpeed = obj.optDouble("playbackSpeed", 1.0).toFloat().coerceIn(0.5f, 2.0f),
+                    playbackPitch = obj.optDouble("playbackPitch", 1.0).toFloat().coerceIn(0.75f, 1.5f)
                 )
             }
             map
@@ -316,6 +408,10 @@ class MusicRepository(private val context: Context) {
                 if (item.album != null) put("album", item.album)
                 if (item.customCoverPath != null) put("customCoverPath", item.customCoverPath)
                 if (item.lyrics.isNotEmpty()) put("lyrics", item.lyrics)
+                if (item.trimStartMs > 0L) put("trimStartMs", item.trimStartMs)
+                if (item.trimEndMs > 0L) put("trimEndMs", item.trimEndMs)
+                if (kotlin.math.abs(item.playbackSpeed - 1.0f) > 0.01f) put("playbackSpeed", item.playbackSpeed.toDouble())
+                if (kotlin.math.abs(item.playbackPitch - 1.0f) > 0.01f) put("playbackPitch", item.playbackPitch.toDouble())
             }
             root.put(id, obj)
         }

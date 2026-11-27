@@ -10,6 +10,10 @@ data class Song(
     val albumId: Long? = null,
     val customCoverPath: String? = null,
     val lyrics: String = "",
+    val trimStartMs: Long = 0L,
+    val trimEndMs: Long = 0L,
+    val playbackSpeed: Float = 1.0f,
+    val playbackPitch: Float = 1.0f,
     val isEdited: Boolean = false,
     val isCustomAdded: Boolean = false
 )
@@ -19,7 +23,11 @@ data class SongOverride(
     val artist: String? = null,
     val album: String? = null,
     val customCoverPath: String? = null,
-    val lyrics: String = ""
+    val lyrics: String = "",
+    val trimStartMs: Long = 0L,
+    val trimEndMs: Long = 0L,
+    val playbackSpeed: Float = 1.0f,
+    val playbackPitch: Float = 1.0f
 )
 
 enum class RepeatMode {

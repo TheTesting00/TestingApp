@@ -1,16 +1,24 @@
 # MusikKu (TestingApp)
 
-Aplikasi pemutar musik Android yang mudah diakses langsung di HP, lengkap dengan fitur edit lagu, tambah lirik, dan ubah foto album/cover.
+Aplikasi pemutar musik Android yang mudah diakses langsung di HP, lengkap dengan Studio Edit Musik, pilihan Tema & Gaya Bottom Navigation Bar keren, serta Studio Earphone otomatis saat terhubung ke HP.
 
 ## Fitur Utama
-- **Akses Cepat Lagu di HP:** Otomatis memindai file audio/MP3 bawaan di HP serta mendukung tambah file manual (`+`) dari folder mana pun.
-- **Edit Lagu Lengkap:** Ubah judul lagu, nama artis, dan nama album.
-- **Foto Album / Cover Custom:** Pilih foto dari galeri HP sebagai cover album lagu.
-- **Lirik & Lirik Tersinkron (`.lrc`):** Tulis lirik manual atau impor file `.txt` / `.lrc` (mendukung highlight baris lirik otomatis mengikuti waktu lagu).
-- **Mini Player, Layar Putar Penuh & Notifikasi:** Kontrol putar/jeda, acak (*shuffle*), ulangi (*repeat*), serta notifikasi kontrol musik di background.
+- **Akses Musik HP:** Otomatis memindai file audio bawaan HP (`MediaStore`) dan tombol `+` di navigasi bawah untuk menambahkan file musik dari folder mana pun.
+- **Studio Edit Musik Bawaan:**
+  - Edit judul lagu, nama artis, dan nama album.
+  - Ganti foto cover/album dari galeri HP.
+  - Tambah/edit lirik lagu atau impor file `.txt` / `.lrc` (dengan highlight lirik otomatis mengikuti waktu lagu).
+  - Potong bagian putar lagu (*trim* awal & akhir), atur kecepatan/tempo (`0.5x`–`2.0x`), dan nada suara (*pitch*).
+- **Tema Keren & Gaya Bottom Navigation Bar:**
+  - 6 pilihan tema warna (*Midnight Emerald, Neon Cyber, Glass Aurora, Sunset Bold, Rose Velvet, Minimal Clean*).
+  - 9 gaya *Bottom Navigation Bar* (*Floating Detached, Glassmorphism, Pill Highlight, Center FAB, Gradient Bold, Tab Indicator, Curved Background, Dock Style iOS, Minimal Clean*).
+- **Studio Earphone (Otomatis Saat Konek):**
+  - Deteksi real-time earphone kabel maupun TWS/Bluetooth.
+  - Equalizer 5-band dengan preset (*Normal, Bass Mantap, Vokal Jernih, Pop, Rock, Lo-Fi Chill, Custom*).
+  - Penguat *Bass Boost*, *Surround 3D Virtualizer*, dan *Loudness Gain*.
+  - Otomatisasi: auto-aktif saat earphone konek, auto-jeda saat earphone dilepas, auto-putar saat tersambung, dan ketuk 2x tombol headset untuk lanjut lagu.
 
 ## Cara Mengunduh File `.apk` dari GitHub
 1. Buka tab **Actions** di repositori GitHub ini.
-2. Klik workflow **Build Android APK** yang berstatus hijau (berhasil).
-3. Gulir ke bagian **Artifacts**, lalu unduh **MusikKu-debug-apk**.
-4. Ekstrak file `.zip` tersebut di HP Android, lalu buka `app-debug.apk` untuk menginstal.
+2. Klik workflow **Build Android APK** terbaru yang berstatus hijau.
+3. Gulir ke **Artifacts**, unduh **MusikKu-debug-apk**, ekstrak `.zip`-nya, lalu install `app-debug.apk` di HP Android.
