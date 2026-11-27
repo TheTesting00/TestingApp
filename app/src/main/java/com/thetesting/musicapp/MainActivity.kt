@@ -38,6 +38,7 @@ import com.thetesting.musicapp.model.Song
 import com.thetesting.musicapp.ui.MusicViewModel
 import com.thetesting.musicapp.ui.components.AdaptiveBottomNavBar
 import com.thetesting.musicapp.ui.components.AppTab
+import com.thetesting.musicapp.ui.components.SleepTimerDialog
 import com.thetesting.musicapp.ui.screens.EarphoneScreen
 import com.thetesting.musicapp.ui.screens.EditHubScreen
 import com.thetesting.musicapp.ui.screens.EditSongSheet
@@ -72,6 +73,7 @@ class MainActivity : ComponentActivity() {
 
                 var selectedTab by remember { mutableStateOf(AppTab.MUSIC) }
                 var showNowPlaying by remember { mutableStateOf(false) }
+                var showSleepTimerDialog by remember { mutableStateOf(false) }
                 var editingSong by remember { mutableStateOf<Song?>(null) }
                 var pendingCoverUri by remember { mutableStateOf<Uri?>(null) }
                 var importedLyricsText by remember { mutableStateOf<String?>(null) }
@@ -195,6 +197,7 @@ class MainActivity : ComponentActivity() {
                                 onRefreshSongs = vm::refreshSongs,
                                 onAddMusicFiles = { addMusicLauncher.launch(arrayOf("audio/*")) },
                                 onOpenEarphoneStudio = { selectedTab = AppTab.EARPHONE },
+                                onOpenTimer = { showSleepTimerDialog = true },
                                 onSongClick = { song -> vm.playSong(song) },
                                 onEditSongClick = { song ->
                                     pendingCoverUri = null
@@ -291,7 +294,19 @@ class MainActivity : ComponentActivity() {
                             importedLyricsText = null
                             editingSong = song
                         },
+                        onOpenTimer = { showSleepTimerDialog = true },
                         loadCoverBitmap = vm::loadCoverBitmap
+                    )
+                }
+
+                if (showSleepTimerDialog) {
+                    SleepTimerDialog(
+                        playbackState = playbackState,
+                        onDismiss = { showSleepTimerDialog = false },
+                        onStartMinutes = vm::startSleepTimer,
+                        onStartUntilTrackEnd = vm::startSleepTimerUntilTrackEnd,
+                        onExtendFiveMinutes = { vm.extendSleepTimer(5) },
+                        onCancelTimer = vm::cancelSleepTimer
                     )
                 }
 

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -82,6 +83,7 @@ fun LibraryScreen(
     onRefreshSongs: () -> Unit,
     onAddMusicFiles: () -> Unit,
     onOpenEarphoneStudio: () -> Unit,
+    onOpenTimer: () -> Unit,
     onSongClick: (Song) -> Unit,
     onEditSongClick: (Song) -> Unit,
     loadCoverBitmap: suspend (Song, Int) -> Bitmap?,
@@ -141,6 +143,43 @@ fun LibraryScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
+                    }
+                }
+                if (playbackState.sleepTimerActive) {
+                    Surface(
+                        modifier = Modifier
+                            .padding(start = 6.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable(onClick = onOpenTimer),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = "Timer aktif",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (playbackState.sleepTimerUntilTrackEnd) "Akhir lagu"
+                                else formatDuration(playbackState.sleepTimerRemainingMs),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else {
+                    IconButton(onClick = onOpenTimer) {
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = "Timer pemutar musik"
+                        )
                     }
                 }
                 IconButton(onClick = onAddMusicFiles) {

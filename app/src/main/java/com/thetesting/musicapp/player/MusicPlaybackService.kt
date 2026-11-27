@@ -62,6 +62,9 @@ data class PlaybackState(
     val durationMs: Long = 0L,
     val isShuffle: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    val sleepTimerActive: Boolean = false,
+    val sleepTimerRemainingMs: Long = 0L,
+    val sleepTimerUntilTrackEnd: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -84,6 +87,8 @@ class MusicPlaybackService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var mediaPlayer: MediaPlayer? = null
     private var progressJob: Job? = null
+    private var sleepTimerJob: Job? = null
+    private var sleepTimerEndRealtimeMs: Long = 0L
     private var currentCoverBitmap: Bitmap? = null
     private lateinit var repository: MusicRepository
     private lateinit var audioManager: AudioManager
@@ -413,6 +418,120 @@ class MusicPlaybackService : Service() {
         _playbackState.update { it.copy(errorMessage = null) }
     }
 
+    fun startSleepTimer(durationMinutes: Int, playIfPaused: Boolean) {
+        val clampedMinutes = durationMinutes.coerceIn(1, 720)
+        sleepTimerJob?.cancel()
+        val totalMs = clampedMinutes * 60_000L
+        sleepTimerEndRealtimeMs = SystemClock.elapsedRealtime() + totalMs
+
+        if (playIfPaused && !_playbackState.value.isPlaying) {
+            if (_playbackState.value.currentSong != null) {
+                togglePlayPause()
+            } else if (_playbackState.value.queue.isNotEmpty()) {
+                playIndex(0)
+            }
+        }
+
+        _playbackState.update {
+            it.copy(
+                sleepTimerActive = true,
+                sleepTimerUntilTrackEnd = false,
+                sleepTimerRemainingMs = totalMs
+            )
+        }
+        updateNotification()
+
+        sleepTimerJob = serviceScope.launch {
+            while (true) {
+                val remaining = (sleepTimerEndRealtimeMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                _playbackState.update { it.copy(sleepTimerRemainingMs = remaining) }
+                if (remaining <= 0L) {
+                    fadeOutAndPause()
+                    break
+                }
+                delay(500L)
+            }
+        }
+    }
+
+    fun startSleepTimerUntilTrackEnd(playIfPaused: Boolean) {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        sleepTimerEndRealtimeMs = 0L
+
+        if (playIfPaused && !_playbackState.value.isPlaying) {
+            if (_playbackState.value.currentSong != null) {
+                togglePlayPause()
+            } else if (_playbackState.value.queue.isNotEmpty()) {
+                playIndex(0)
+            }
+        }
+
+        _playbackState.update {
+            it.copy(
+                sleepTimerActive = true,
+                sleepTimerUntilTrackEnd = true,
+                sleepTimerRemainingMs = 0L
+            )
+        }
+        updateNotification()
+    }
+
+    fun extendSleepTimer(extraMinutes: Int) {
+        val state = _playbackState.value
+        if (!state.sleepTimerActive || state.sleepTimerUntilTrackEnd) return
+        val extraMs = extraMinutes.coerceAtLeast(1) * 60_000L
+        sleepTimerEndRealtimeMs += extraMs
+        val newRemaining = (sleepTimerEndRealtimeMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        _playbackState.update { it.copy(sleepTimerRemainingMs = newRemaining) }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        sleepTimerEndRealtimeMs = 0L
+        try {
+            mediaPlayer?.setVolume(1f, 1f)
+        } catch (_: Exception) {
+        }
+        _playbackState.update {
+            it.copy(
+                sleepTimerActive = false,
+                sleepTimerUntilTrackEnd = false,
+                sleepTimerRemainingMs = 0L
+            )
+        }
+        updateNotification()
+    }
+
+    private suspend fun fadeOutAndPause() {
+        val player = mediaPlayer
+        if (player != null && player.isPlaying) {
+            val steps = 8
+            for (i in steps downTo 1) {
+                val vol = i / steps.toFloat()
+                try {
+                    mediaPlayer?.setVolume(vol, vol)
+                } catch (_: Exception) {
+                }
+                delay(150L)
+            }
+        }
+        pauseFromExternal()
+        try {
+            mediaPlayer?.setVolume(1f, 1f)
+        } catch (_: Exception) {
+        }
+        _playbackState.update {
+            it.copy(
+                sleepTimerActive = false,
+                sleepTimerUntilTrackEnd = false,
+                sleepTimerRemainingMs = 0L
+            )
+        }
+        updateNotification()
+    }
+
     private fun playIndex(index: Int) {
         val queue = _playbackState.value.queue
         if (index !in queue.indices) return
@@ -618,6 +737,21 @@ class MusicPlaybackService : Service() {
 
     private fun handleTrackCompleted() {
         val state = _playbackState.value
+        if (state.sleepTimerActive && state.sleepTimerUntilTrackEnd) {
+            _playbackState.update {
+                it.copy(
+                    isPlaying = false,
+                    positionMs = it.durationMs,
+                    sleepTimerActive = false,
+                    sleepTimerUntilTrackEnd = false,
+                    sleepTimerRemainingMs = 0L
+                )
+            }
+            stopProgressTicker()
+            updateMediaSessionState()
+            updateNotification()
+            return
+        }
         when (state.repeatMode) {
             RepeatMode.ONE -> playIndex(state.currentIndex)
             RepeatMode.ALL -> skipNext()
@@ -756,10 +890,16 @@ class MusicPlaybackService : Service() {
         val playPauseLabel = if (state.isPlaying) "Jeda" else "Putar"
         val playPauseIcon = if (state.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
 
+        val timerBadge = when {
+            state.sleepTimerActive && state.sleepTimerUntilTrackEnd -> " • ⏱ Akhir lagu"
+            state.sleepTimerActive && state.sleepTimerRemainingMs > 0L ->
+                " • ⏱ ${com.thetesting.musicapp.model.formatDuration(state.sleepTimerRemainingMs)}"
+            else -> ""
+        }
         val statusBadge = if (_earphoneStatus.value.isConnected) {
-            "🎧 ${_earphoneStatus.value.deviceName}"
+            "🎧 ${_earphoneStatus.value.deviceName}$timerBadge"
         } else {
-            "${song.artist} • ${song.album}"
+            "${song.artist} • ${song.album}$timerBadge"
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -804,6 +944,7 @@ class MusicPlaybackService : Service() {
     override fun onDestroy() {
         try { audioManager.unregisterAudioDeviceCallback(audioDeviceCallback) } catch (_: Exception) {}
         try { unregisterReceiver(noisyReceiver) } catch (_: Exception) {}
+        sleepTimerJob?.cancel()
         mediaSession?.release()
         stopProgressTicker()
         releasePlayer()

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -75,6 +76,7 @@ fun NowPlayingScreen(
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
     onEditSong: (Song) -> Unit,
+    onOpenTimer: () -> Unit,
     loadCoverBitmap: suspend (Song, Int) -> Bitmap?
 ) {
     val song = playbackState.currentSong ?: return
@@ -120,11 +122,24 @@ fun NowPlayingScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    IconButton(onClick = { onEditSong(song) }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = "Edit lagu, lirik, & cover"
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onOpenTimer) {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = "Timer pemutar musik",
+                                tint = if (playbackState.sleepTimerActive) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
+                        IconButton(onClick = { onEditSong(song) }) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Edit lagu, lirik, & cover"
+                            )
+                        }
                     }
                 }
 
@@ -183,6 +198,21 @@ fun NowPlayingScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Edit Lagu")
+                    }
+                    if (playbackState.sleepTimerActive) {
+                        Spacer(modifier = Modifier.width(10.dp))
+                        FilledTonalButton(onClick = onOpenTimer) {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                if (playbackState.sleepTimerUntilTrackEnd) "Akhir"
+                                else formatDuration(playbackState.sleepTimerRemainingMs)
+                            )
+                        }
                     }
                 }
 

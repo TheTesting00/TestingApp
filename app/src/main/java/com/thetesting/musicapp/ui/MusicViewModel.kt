@@ -269,6 +269,44 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         playbackService?.clearError()
     }
 
+    fun startSleepTimer(minutes: Int, playIfPaused: Boolean) {
+        val ctx = getApplication<Application>()
+        ctx.startService(Intent(ctx, MusicPlaybackService::class.java))
+
+        if (playIfPaused && _playbackState.value.currentSong == null) {
+            val queue = filteredSongs.value.ifEmpty { _songs.value }
+            if (queue.isNotEmpty()) {
+                playbackService?.setQueueAndPlay(queue, 0)
+            }
+        }
+        playbackService?.startSleepTimer(minutes, playIfPaused)
+        _statusMessage.value = "Timer musik disetel $minutes menit"
+    }
+
+    fun startSleepTimerUntilTrackEnd(playIfPaused: Boolean) {
+        val ctx = getApplication<Application>()
+        ctx.startService(Intent(ctx, MusicPlaybackService::class.java))
+
+        if (playIfPaused && _playbackState.value.currentSong == null) {
+            val queue = filteredSongs.value.ifEmpty { _songs.value }
+            if (queue.isNotEmpty()) {
+                playbackService?.setQueueAndPlay(queue, 0)
+            }
+        }
+        playbackService?.startSleepTimerUntilTrackEnd(playIfPaused)
+        _statusMessage.value = "Musik berhenti setelah lagu ini selesai"
+    }
+
+    fun extendSleepTimer(extraMinutes: Int) {
+        playbackService?.extendSleepTimer(extraMinutes)
+        _statusMessage.value = "Timer ditambah +$extraMinutes menit"
+    }
+
+    fun cancelSleepTimer() {
+        playbackService?.cancelSleepTimer()
+        _statusMessage.value = "Timer musik dibatalkan"
+    }
+
     fun saveSongEdit(
         song: Song,
         title: String,
