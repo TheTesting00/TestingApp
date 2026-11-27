@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build MusikKu Debug APK
+    name: Build MySmile Debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -30,8 +30,8 @@ jobs:
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon
 
-      - name: Upload MusikKu APK
+      - name: Upload MySmile APK
         uses: actions/upload-artifact@v4
         with:
-          name: MusikKu-debug-apk
+          name: MySmile-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk

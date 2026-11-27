@@ -931,10 +931,10 @@ class MusicPlaybackService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Pemutar Musik",
+                "Pemutar Musik MySmile",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Kontrol pemutaran musik MusikKu"
+                description = "Kontrol pemutaran musik MySmile"
             }
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)

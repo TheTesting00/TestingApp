@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.thetesting.musicapp.data.PrivateVaultRepository
 import com.thetesting.musicapp.model.Song
 import com.thetesting.musicapp.ui.MusicViewModel
 import com.thetesting.musicapp.ui.components.SleepTimerDialog
@@ -43,6 +44,7 @@ import com.thetesting.musicapp.ui.screens.EditSongSheet
 import com.thetesting.musicapp.ui.screens.LibraryScreen
 import com.thetesting.musicapp.ui.screens.MiniPlayerBar
 import com.thetesting.musicapp.ui.screens.NowPlayingScreen
+import com.thetesting.musicapp.ui.screens.PrivateVaultScreen
 import com.thetesting.musicapp.ui.screens.ThemeScreen
 import com.thetesting.musicapp.ui.theme.MusikKuTheme
 import kotlinx.coroutines.launch
@@ -51,13 +53,16 @@ enum class AppScreen {
     LIBRARY,
     EDIT_HUB,
     EARPHONE,
-    THEME
+    THEME,
+    PRIVATE_VAULT
 }
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val vaultRepository = PrivateVaultRepository(applicationContext)
 
         setContent {
             val vm: MusicViewModel = viewModel()
@@ -143,6 +148,36 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                val pickVaultVideoLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri ->
+                    if (uri != null) {
+                        scope.launch {
+                            val res = vaultRepository.importItem(uri, isVideo = true)
+                            if (res != null) {
+                                Toast.makeText(this@MainActivity, "Video berhasil disimpan ke Brankas", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@MainActivity, "Gagal menambahkan video", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+
+                val pickVaultFileLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri ->
+                    if (uri != null) {
+                        scope.launch {
+                            val res = vaultRepository.importItem(uri, isVideo = false)
+                            if (res != null) {
+                                Toast.makeText(this@MainActivity, "File berhasil disimpan ke Brankas", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@MainActivity, "Gagal menambahkan file", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     val alreadyGranted = hasPermission(audioPermission)
                     vm.setAudioPermissionGranted(alreadyGranted)
@@ -210,12 +245,8 @@ class MainActivity : ComponentActivity() {
                                 onOpenEarphoneStudio = { currentScreen = AppScreen.EARPHONE },
                                 onOpenTheme = { currentScreen = AppScreen.THEME },
                                 onOpenTimer = { showSleepTimerDialog = true },
+                                onOpenPrivateVault = { currentScreen = AppScreen.PRIVATE_VAULT },
                                 onSongClick = { song -> vm.playSong(song) },
-                                onEditSongClick = { song ->
-                                    pendingCoverUri = null
-                                    importedLyricsText = null
-                                    editingSong = song
-                                },
                                 loadCoverBitmap = vm::loadCoverBitmap,
                                 bottomSpacerHeight = bottomContentPadding
                             )
@@ -259,9 +290,17 @@ class MainActivity : ComponentActivity() {
                                 bottomPadding = bottomContentPadding
                             )
                         }
+
+                        AppScreen.PRIVATE_VAULT -> {
+                            PrivateVaultScreen(
+                                onBack = { currentScreen = AppScreen.LIBRARY },
+                                onPickVideo = { pickVaultVideoLauncher.launch("video/*") },
+                                onPickFile = { pickVaultFileLauncher.launch("*/*") }
+                            )
+                        }
                     }
 
-                    // Floating Mini Player docked above the system navigation bar
+                    // Floating Mini Player (Popup saat memutar musik)
                     val currentSong = playbackState.currentSong
                     if (currentSong != null) {
                         Box(

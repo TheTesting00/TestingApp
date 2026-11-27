@@ -22,12 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Article
-import androidx.compose.material.icons.rounded.BluetoothAudio
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Palette
@@ -68,7 +68,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.thetesting.musicapp.model.EarphoneConnectionType
 import com.thetesting.musicapp.model.EarphoneStatus
 import com.thetesting.musicapp.model.Song
 import com.thetesting.musicapp.model.formatDuration
@@ -95,8 +94,8 @@ fun LibraryScreen(
     onOpenEarphoneStudio: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenTimer: () -> Unit,
+    onOpenPrivateVault: () -> Unit,
     onSongClick: (Song) -> Unit,
-    onEditSongClick: (Song) -> Unit,
     loadCoverBitmap: suspend (Song, Int) -> Bitmap?,
     bottomSpacerHeight: PaddingValues = PaddingValues(bottom = 90.dp)
 ) {
@@ -114,7 +113,7 @@ fun LibraryScreen(
             title = {
                 Column {
                     Text(
-                        text = "MusikKu",
+                        text = "MySmile",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -126,83 +125,11 @@ fun LibraryScreen(
                 }
             },
             actions = {
-                if (earphoneStatus.isConnected) {
-                    Surface(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable(onClick = onOpenEarphoneStudio),
-                        color = Color(0xFF22C55E).copy(alpha = 0.18f),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (earphoneStatus.type == EarphoneConnectionType.BLUETOOTH) {
-                                    Icons.Rounded.BluetoothAudio
-                                } else {
-                                    Icons.Rounded.Headphones
-                                },
-                                contentDescription = "Earphone aktif",
-                                tint = Color(0xFF22C55E),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Earphone",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF22C55E),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-
-                if (playbackState.sleepTimerActive) {
-                    Surface(
-                        modifier = Modifier
-                            .padding(start = 6.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable(onClick = onOpenTimer),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Timer,
-                                contentDescription = "Timer aktif",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (playbackState.sleepTimerUntilTrackEnd) "Akhir lagu"
-                                else formatDuration(playbackState.sleepTimerRemainingMs),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                IconButton(onClick = onAddMusicFiles) {
-                    Icon(
-                        imageVector = Icons.Rounded.FolderOpen,
-                        contentDescription = "Tambah file musik",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
                 Box {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = "Pengaturan & Menu"
+                            contentDescription = "Pengaturan MySmile"
                         )
                     }
 
@@ -211,7 +138,17 @@ fun LibraryScreen(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Edit Musik") },
+                            text = { Text("Tambah File Musik") },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onAddMusicFiles()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Edit Musik & Cover") },
                             leadingIcon = {
                                 Icon(Icons.Rounded.Edit, contentDescription = null)
                             },
@@ -266,6 +203,17 @@ fun LibraryScreen(
                             onClick = {
                                 showMenu = false
                                 onOpenTimer()
+                            }
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Private File & Video") },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            onClick = {
+                                showMenu = false
+                                onOpenPrivateVault()
                             }
                         )
                         HorizontalDivider()
@@ -363,12 +311,11 @@ fun LibraryScreen(
             ) {
                 items(songs, key = { it.id }) { song ->
                     val isCurrent = playbackState.currentSong?.id == song.id
-                    SongRowCard(
+                    CleanSongRowCard(
                         song = song,
                         isCurrent = isCurrent,
                         isPlaying = isCurrent && playbackState.isPlaying,
                         onClick = { onSongClick(song) },
-                        onEditClick = { onEditSongClick(song) },
                         loadCoverBitmap = loadCoverBitmap
                     )
                 }
@@ -397,7 +344,7 @@ private fun PermissionCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Berikan izin audio agar MusikKu otomatis memindai lagu bawaan & MP3 di HP kamu, atau pilih manual lewat ikon folder di atas.",
+                text = "Berikan izin audio agar MySmile otomatis memindai lagu bawaan & MP3 di HP kamu, atau pilih manual lewat menu titik 3 di atas.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -444,7 +391,7 @@ private fun EmptyLibraryState(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "Ketuk tombol di bawah untuk memilih file musik (MP3, M4A, FLAC, WAV) langsung dari penyimpanan HP.",
+            text = "Ketuk tombol di bawah untuk memilih file musik langsung dari penyimpanan HP.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -458,12 +405,11 @@ private fun EmptyLibraryState(
 }
 
 @Composable
-fun SongRowCard(
+fun CleanSongRowCard(
     song: Song,
     isCurrent: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
-    onEditClick: () -> Unit,
     loadCoverBitmap: suspend (Song, Int) -> Bitmap?
 ) {
     Surface(
@@ -479,7 +425,7 @@ fun SongRowCard(
         shape = RoundedCornerShape(14.dp)
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AlbumArtImage(
@@ -558,13 +504,6 @@ fun SongRowCard(
                         )
                     }
                 }
-            }
-            IconButton(onClick = onEditClick) {
-                Icon(
-                    imageVector = Icons.Rounded.Edit,
-                    contentDescription = "Edit lagu, lirik, & cover",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
