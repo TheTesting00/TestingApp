@@ -510,6 +510,119 @@ fun CleanSongRowCard(
 }
 
 @Composable
+fun SongRowCard(
+    song: Song,
+    isCurrent: Boolean,
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    onEditClick: () -> Unit,
+    loadCoverBitmap: suspend (Song, Int) -> Bitmap?
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        color = if (isCurrent) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlbumArtImage(
+                song = song,
+                loadBitmap = loadCoverBitmap,
+                modifier = Modifier.size(54.dp),
+                cornerRadius = 10.dp,
+                maxSizePx = 180,
+                iconSize = 24.dp
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${song.artist} • ${song.album}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    if (song.durationMs > 0L) {
+                        Text(
+                            text = formatDuration(song.durationMs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (song.lyrics.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Article,
+                                contentDescription = "Ada lirik",
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "Lirik",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                    if (song.trimStartMs > 0L || song.trimEndMs > 0L || kotlin.math.abs(song.playbackSpeed - 1.0f) > 0.02f) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCut,
+                            contentDescription = "Audio diedit",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                    if (song.isEdited) {
+                        Text(
+                            text = "• Diedit",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (isPlaying) {
+                        Text(
+                            text = "• Diputar",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            IconButton(onClick = onEditClick) {
+                Icon(
+                    imageVector = Icons.Rounded.Edit,
+                    contentDescription = "Edit lagu",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun MiniPlayerBar(
     song: Song,
     isPlaying: Boolean,
